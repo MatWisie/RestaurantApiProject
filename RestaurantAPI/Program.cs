@@ -8,7 +8,7 @@ using System.Text;
 var builder = WebApplication.CreateBuilder(args);
 ConfigurationManager configuration = builder.Configuration;
 
-builder.Services.AddDbContext<RestaurantDbContext>(options => options.UseSqlServer(configuration.GetConnectionString("ConnStr"))); //configuration.GetConnectionString("ConnetionString:Default")
+builder.Services.AddDbContext<RestaurantDbContext>(options => options.UseSqlServer(configuration.GetConnectionString("ConnStr")));
 
 // For Identity
 builder.Services.AddIdentity<IdentityUser, IdentityRole>()
@@ -46,11 +46,10 @@ builder.Services.AddSwaggerGen();
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
-if (app.Environment.IsDevelopment())
-{
-    app.UseSwagger();
-    app.UseSwaggerUI();
-}
+
+app.UseSwagger();
+app.UseSwaggerUI();
+
 
 app.UseHttpsRedirection();
 
