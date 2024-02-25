@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using RestaurantAPI;
+using RestaurantAPI.Models;
 using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -11,7 +12,7 @@ ConfigurationManager configuration = builder.Configuration;
 builder.Services.AddDbContext<RestaurantDbContext>(options => options.UseSqlServer(configuration.GetConnectionString("ConnStr")));
 
 // For Identity
-builder.Services.AddIdentity<IdentityUser, IdentityRole>()
+builder.Services.AddIdentity<IdentityUserModel, IdentityRole>()
     .AddEntityFrameworkStores<RestaurantDbContext>()
     .AddDefaultTokenProviders();
 
