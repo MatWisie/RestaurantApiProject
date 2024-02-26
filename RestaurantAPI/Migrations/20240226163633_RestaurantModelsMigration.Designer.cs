@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using RestaurantAPI;
 
@@ -11,9 +12,11 @@ using RestaurantAPI;
 namespace RestaurantAPI.Migrations
 {
     [DbContext(typeof(RestaurantDbContext))]
-    partial class RestaurantDbContextModelSnapshot : ModelSnapshot
+    [Migration("20240226163633_RestaurantModelsMigration")]
+    partial class RestaurantModelsMigration
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -266,7 +269,7 @@ namespace RestaurantAPI.Migrations
                     b.Property<int>("IdentityUserId")
                         .HasColumnType("int");
 
-                    b.Property<string>("IdentityUserModelId")
+                    b.Property<string>("IdentityUserId1")
                         .HasColumnType("nvarchar(450)");
 
                     b.Property<int>("Price")
@@ -282,7 +285,7 @@ namespace RestaurantAPI.Migrations
 
                     b.HasIndex("DishModelId");
 
-                    b.HasIndex("IdentityUserModelId");
+                    b.HasIndex("IdentityUserId1");
 
                     b.HasIndex("TableModelId");
 
@@ -303,7 +306,7 @@ namespace RestaurantAPI.Migrations
                     b.Property<int>("IdentityUserId")
                         .HasColumnType("int");
 
-                    b.Property<string>("IdentityUserModelId")
+                    b.Property<string>("IdentityUserId1")
                         .HasColumnType("nvarchar(450)");
 
                     b.Property<int>("TableModelId")
@@ -314,7 +317,7 @@ namespace RestaurantAPI.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("IdentityUserModelId");
+                    b.HasIndex("IdentityUserId1");
 
                     b.HasIndex("TableModelId");
 
@@ -399,9 +402,9 @@ namespace RestaurantAPI.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("RestaurantAPI.Models.IdentityUserModel", "IdentityUserModel")
+                    b.HasOne("RestaurantAPI.Models.IdentityUserModel", "IdentityUser")
                         .WithMany("OrderModels")
-                        .HasForeignKey("IdentityUserModelId");
+                        .HasForeignKey("IdentityUserId1");
 
                     b.HasOne("RestaurantAPI.Models.TableModel", "TableModel")
                         .WithMany("OrderModels")
@@ -411,24 +414,24 @@ namespace RestaurantAPI.Migrations
 
                     b.Navigation("DishModel");
 
-                    b.Navigation("IdentityUserModel");
+                    b.Navigation("IdentityUser");
 
                     b.Navigation("TableModel");
                 });
 
             modelBuilder.Entity("RestaurantAPI.Models.ReservationModel", b =>
                 {
-                    b.HasOne("RestaurantAPI.Models.IdentityUserModel", "IdentityUserModel")
-                        .WithMany("Reservations")
-                        .HasForeignKey("IdentityUserModelId");
+                    b.HasOne("RestaurantAPI.Models.IdentityUserModel", "IdentityUser")
+                        .WithMany()
+                        .HasForeignKey("IdentityUserId1");
 
                     b.HasOne("RestaurantAPI.Models.TableModel", "TableModel")
-                        .WithMany("Reservations")
+                        .WithMany()
                         .HasForeignKey("TableModelId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.Navigation("IdentityUserModel");
+                    b.Navigation("IdentityUser");
 
                     b.Navigation("TableModel");
                 });
@@ -441,15 +444,11 @@ namespace RestaurantAPI.Migrations
             modelBuilder.Entity("RestaurantAPI.Models.IdentityUserModel", b =>
                 {
                     b.Navigation("OrderModels");
-
-                    b.Navigation("Reservations");
                 });
 
             modelBuilder.Entity("RestaurantAPI.Models.TableModel", b =>
                 {
                     b.Navigation("OrderModels");
-
-                    b.Navigation("Reservations");
                 });
 #pragma warning restore 612, 618
         }
