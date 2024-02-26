@@ -10,5 +10,9 @@ namespace RestaurantAPI
     : base(options)
         {
         }
+        public DbSet<DishModel> Dishes { get; set; }
+        public DbSet<OrderModel> Orders { get; set; }
+        public DbSet<ReservationModel> Reservations { get; set; }
+        public DbSet<TableModel> Tables { get; set; }
     }
 }

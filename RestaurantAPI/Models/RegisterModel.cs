@@ -13,6 +13,9 @@ namespace RestaurantAPI.Models
 
         [Required(ErrorMessage = "Password is required")]
         public string? Password { get; set; }
+
+        [Required(ErrorMessage = "Age is required")]
+        public int Age { get; set; }
     }
 
 }
