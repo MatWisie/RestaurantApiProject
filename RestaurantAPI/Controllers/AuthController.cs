@@ -35,7 +35,7 @@ namespace RestaurantAPI.Controllers
             if (user != null && await _userManager.CheckPasswordAsync(user, model.Password))
             {
                 var userRoles = await _userManager.GetRolesAsync(user);
-                if (userRoles.Any(e => e == UserRoles.User))
+                if (!userRoles.Any(e => e.Contains(UserRoles.Admin) || e.Contains(UserRoles.Worker)))
                 {
                     return StatusCode(StatusCodes.Status500InternalServerError, new Response { Status = "Error", Message = "Selected user is not worker or admin" });
                 }
@@ -110,7 +110,8 @@ namespace RestaurantAPI.Controllers
                 Email = model.Email,
                 SecurityStamp = Guid.NewGuid().ToString(),
                 UserName = model.Username,
-                FirstTimeLoggedIn = false
+                FirstTimeLoggedIn = false,
+                Age = model.Age
             };
             var result = await _userManager.CreateAsync(user, model.Password);
             if (!result.Succeeded)
@@ -127,6 +128,7 @@ namespace RestaurantAPI.Controllers
             return Ok(new Response { Status = "Success", Message = "User created successfully!" });
         }
 
+        [Authorize(Roles = UserRoles.Admin)]
         [HttpPost]
         [Route("register-worker")]
         public async Task<IActionResult> RegisterWorker([FromBody] RegisterModel model)
@@ -140,7 +142,8 @@ namespace RestaurantAPI.Controllers
                 Email = model.Email,
                 SecurityStamp = Guid.NewGuid().ToString(),
                 UserName = model.Username,
-                FirstTimeLoggedIn = true
+                FirstTimeLoggedIn = true,
+                Age = model.Age,
             };
             var result = await _userManager.CreateAsync(user, model.Password);
             if (!result.Succeeded)
