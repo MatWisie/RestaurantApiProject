@@ -11,7 +11,7 @@ namespace RestaurantAPI.Models
         public TableModel TableModel { get; set; }
         public int DishModelId { get; set; }
         public DishModel DishModel { get; set; }
-        public int IdentityUserId { get; set; }
+        public string IdentityUserId { get; set; }
         public IdentityUserModel IdentityUserModel { get; set; }
     }
 }
