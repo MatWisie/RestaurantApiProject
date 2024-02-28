@@ -44,6 +44,7 @@ namespace RestaurantAPI.Controllers
                 {
                     new Claim(ClaimTypes.Name, user.UserName),
                     new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
+                    new Claim(ClaimTypes.NameIdentifier, user.Id),
                 };
 
                 foreach (var userRole in userRoles)
@@ -56,7 +57,8 @@ namespace RestaurantAPI.Controllers
                 return Ok(new
                 {
                     token = new JwtSecurityTokenHandler().WriteToken(token),
-                    expiration = token.ValidTo
+                    expiration = token.ValidTo,
+                    userId = user.Id
                 });
             }
             return Unauthorized();
@@ -79,6 +81,7 @@ namespace RestaurantAPI.Controllers
                 {
                     new Claim(ClaimTypes.Name, user.UserName),
                     new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
+                    new Claim(ClaimTypes.NameIdentifier, user.Id),
                 };
 
                 foreach (var userRole in userRoles)
@@ -91,7 +94,8 @@ namespace RestaurantAPI.Controllers
                 return Ok(new
                 {
                     token = new JwtSecurityTokenHandler().WriteToken(token),
-                    expiration = token.ValidTo
+                    expiration = token.ValidTo,
+                    userId = user.Id
                 });
             }
             return Unauthorized();
