@@ -6,6 +6,7 @@ using RestaurantAPI.Models;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
+using System.Text.RegularExpressions;
 
 namespace RestaurantAPI.Controllers
 {
@@ -53,12 +54,21 @@ namespace RestaurantAPI.Controllers
                 }
 
                 var token = GetToken(authClaims);
+                bool originalFirstTimeLoggedIn = user.FirstTimeLoggedIn;
+
+                if (user.FirstTimeLoggedIn)
+                {
+                    user.FirstTimeLoggedIn = false;
+                    await _userManager.UpdateAsync(user);
+                }
 
                 return Ok(new
                 {
                     token = new JwtSecurityTokenHandler().WriteToken(token),
                     expiration = token.ValidTo,
-                    userId = user.Id
+                    userId = user.Id,
+                    userRoles = userRoles,
+                    firstLogin = originalFirstTimeLoggedIn
                 });
             }
             return Unauthorized();
@@ -95,7 +105,8 @@ namespace RestaurantAPI.Controllers
                 {
                     token = new JwtSecurityTokenHandler().WriteToken(token),
                     expiration = token.ValidTo,
-                    userId = user.Id
+                    userId = user.Id,
+                    userRoles = userRoles
                 });
             }
             return Unauthorized();
@@ -150,6 +161,7 @@ namespace RestaurantAPI.Controllers
 
             if (!passwordPattern.IsMatch(model.Password))
                 return StatusCode(StatusCodes.Status500InternalServerError, new Response { Status = "Error", Message = "Password must be at least 8 characters long, contain at least one uppercase letter, one lowercase letter, one digit, and one special character." });
+
             IdentityUserModel user = new()
             {
                 Email = model.Email,
