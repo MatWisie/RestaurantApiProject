@@ -21,5 +21,25 @@ namespace RestaurantAPI.Controllers
             _roleManager = roleManager;
         }
 
+        [Authorize(Roles = UserRoles.Admin)]
+        [HttpGet("GetUsers")]
+        public async Task<IActionResult> GetUsers()
+        {
+            var users = await _context.Users.ToListAsync();
+            List<UserGetModel> userGetModels = new List<UserGetModel>();
+            foreach (var user in users)
+            {
+                var userRole = await _userManager.GetRolesAsync(user);
+                UserGetModel userGetModel = new UserGetModel()
+                {
+                    Id = user.Id,
+                    UserName = user.UserName,
+                    Role = userRole[0]
+                };
+                userGetModels.Add(userGetModel);
+            }
+            return Ok(userGetModels);
+        }
+
     }
 }
