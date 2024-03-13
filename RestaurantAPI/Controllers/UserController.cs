@@ -41,5 +41,43 @@ namespace RestaurantAPI.Controllers
             return Ok(userGetModels);
         }
 
+        [Authorize]
+        [HttpPost("EditUser")]
+        public async Task<IActionResult> EditUser([FromBody] UserEditModel userEditModel)
+        {
+            if (User.Claims.FirstOrDefault(e => e.Type == ClaimTypes.NameIdentifier).Value == userEditModel.Id || User.IsInRole(UserRoles.Admin))
+            {
+                var user = await _userManager.FindByIdAsync(userEditModel.Id);
+                if (user == null)
+                {
+                    return NotFound("User not found");
+                }
+
+                var passwordPattern = new Regex(@"^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^\da-zA-Z]).{8,}$");
+
+                if (!passwordPattern.IsMatch(userEditModel.Password))
+                    return StatusCode(StatusCodes.Status500InternalServerError, new Response { Status = "Error", Message = "Password must be at least 8 characters long, contain at least one uppercase letter, one lowercase letter, one digit, and one special character." });
+
+                user.UserName = userEditModel.Username;
+                await _userManager.ChangePasswordAsync(user, user.PasswordHash, userEditModel.Password);
+                user.Age = userEditModel.Age;
+
+                var result = await _userManager.UpdateAsync(user);
+
+                if (result.Succeeded)
+                {
+                    return Ok("User updated successfully");
+                }
+                else
+                {
+                    return BadRequest(result.Errors);
+                }
+            }
+            else
+            {
+                return Unauthorized();
+            }
+        }
+
     }
 }
