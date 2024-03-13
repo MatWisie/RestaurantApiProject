@@ -22,7 +22,7 @@ namespace RestaurantAPI.Controllers
         }
 
         [Authorize(Roles = UserRoles.Admin)]
-        [HttpGet("GetUsers")]
+        [HttpGet("get-users")]
         public async Task<IActionResult> GetUsers()
         {
             var users = await _context.Users.ToListAsync();
@@ -42,7 +42,7 @@ namespace RestaurantAPI.Controllers
         }
 
         [Authorize]
-        [HttpPost("EditUser")]
+        [HttpPost("edit-user")]
         public async Task<IActionResult> EditUser([FromBody] UserEditModel userEditModel)
         {
             if (User.Claims.FirstOrDefault(e => e.Type == ClaimTypes.NameIdentifier).Value == userEditModel.Id || User.IsInRole(UserRoles.Admin))
