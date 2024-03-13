@@ -79,5 +79,19 @@ namespace RestaurantAPI.Controllers
             }
         }
 
+        [Authorize(Roles = UserRoles.Admin)]
+        [HttpDelete("/delete-user/{id}")]
+        public async Task<IActionResult> DeleteUser(string id)
+        {
+            var user = await _userManager.FindByIdAsync(id);
+            if (user == null)
+                return NotFound();
+            var result = await _userManager.DeleteAsync(user);
+            if (result.Succeeded)
+            {
+                return Ok("User deleted");
+            }
+            return BadRequest(result.Errors);
+        }
     }
 }
