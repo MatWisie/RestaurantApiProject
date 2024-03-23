@@ -8,6 +8,8 @@ namespace RestaurantAPI.Models
         public bool IsAvailable { get; set; } = true;
         [Required]
         public int NumberOfSeats { get; set; }
+        public int GridRow { get; set; }
+        public int GridColumn { get; set; }
 
         public ICollection<OrderModel> OrderModels { get; set; }
         public ICollection<ReservationModel> Reservations { get; set; }
