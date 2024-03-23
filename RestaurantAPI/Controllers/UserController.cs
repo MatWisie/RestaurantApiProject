@@ -25,20 +25,27 @@ namespace RestaurantAPI.Controllers
         [HttpGet("get-users")]
         public async Task<IActionResult> GetUsers()
         {
-            var users = await _context.Users.ToListAsync();
-            List<UserGetModel> userGetModels = new List<UserGetModel>();
-            foreach (var user in users)
+            try
             {
-                var userRole = await _userManager.GetRolesAsync(user);
-                UserGetModel userGetModel = new UserGetModel()
+                var users = await _context.Users.ToListAsync();
+                List<UserGetModel> userGetModels = new List<UserGetModel>();
+                foreach (var user in users)
                 {
-                    Id = user.Id,
-                    UserName = user.UserName,
-                    Role = userRole[0]
-                };
-                userGetModels.Add(userGetModel);
+                    var userRole = await _userManager.GetRolesAsync(user);
+                    UserGetModel userGetModel = new UserGetModel()
+                    {
+                        Id = user.Id,
+                        UserName = user.UserName,
+                        Role = userRole.Count > 0 ? userRole[0] : "No Role Assigned"
+                    };
+                    userGetModels.Add(userGetModel);
+                }
+                return Ok(userGetModels);
             }
-            return Ok(userGetModels);
+            catch (Exception ex)
+            {
+                return BadRequest(ex.Message);
+            }
         }
 
         [Authorize]

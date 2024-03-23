@@ -19,7 +19,7 @@ namespace RestaurantAPI.Controllers
 
         // GET: api/Dish
         [HttpGet]
-        public async Task<ActionResult<IEnumerable<DishModel>>> GetDishes()
+        public async Task<ActionResult<IEnumerable<DishGetModel>>> GetDishes()
         {
             var dishes = await _context.Dishes.ToListAsync();
             List<DishGetModel> dishesDto = new List<DishGetModel>();
@@ -29,7 +29,7 @@ namespace RestaurantAPI.Controllers
                 {
                     Id = dish.Id,
                     Name = dish.Name,
-                    Description = dish.Name,
+                    Description = dish.Description,
                     Price = dish.Price,
                     Availability = dish.Availability
                 };
@@ -52,7 +52,7 @@ namespace RestaurantAPI.Controllers
             {
                 Id = dishModel.Id,
                 Name = dishModel.Name,
-                Description = dishModel.Name,
+                Description = dishModel.Description,
                 Price = dishModel.Price,
                 Availability = dishModel.Availability
             };
