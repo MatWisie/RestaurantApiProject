@@ -76,7 +76,7 @@ namespace RestaurantAPI.Controllers
         [HttpPut("{id}")]
         public async Task<IActionResult> PutTableModel(int id, TablePostModel tablePostModel)
         {
-            if (tablePostModel.GridColumn <= 0 || tablePostModel.GridRow <= 0 || tablePostModel.NumberOfSeats <= 0)
+            if (tablePostModel.GridColumn < 0 || tablePostModel.GridRow < 0 || tablePostModel.NumberOfSeats <= 0)
             {
                 return BadRequest("Wrong table model");
             }
@@ -156,7 +156,7 @@ namespace RestaurantAPI.Controllers
         [HttpPost]
         public async Task<ActionResult<TablePostModel>> PostTableModel(TablePostModel tableModel)
         {
-            if (tableModel.GridColumn <= 0 || tableModel.GridRow <= 0 || tableModel.NumberOfSeats <= 0)
+            if (tableModel.GridColumn < 0 || tableModel.GridRow < 0 || tableModel.NumberOfSeats <= 0)
             {
                 return BadRequest("Wrong table model");
             }
