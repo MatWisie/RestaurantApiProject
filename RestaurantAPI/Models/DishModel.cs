@@ -13,6 +13,6 @@ namespace RestaurantAPI.Models
         [Required(ErrorMessage = "Availability is required")]
         public bool Availability { get; set; }
 
-        public ICollection<OrderModel> Orders { get; set; }
+        public virtual ICollection<OrderModel> Orders { get; set; }
     }
 }
