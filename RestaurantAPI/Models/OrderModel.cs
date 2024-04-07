@@ -5,13 +5,12 @@ namespace RestaurantAPI.Models
     public class OrderModel
     {
         public int Id { get; set; }
-        public StatusEnum Status { get; set; }
-        public int Price { get; set; }
+        public StatusEnum Status { get; set; } = StatusEnum.Working;
+        public double Price { get; set; }
         public int TableModelId { get; set; }
-        public TableModel TableModel { get; set; }
-        public int DishModelId { get; set; }
-        public DishModel DishModel { get; set; }
+        public virtual TableModel TableModel { get; set; }
+        public List<DishModel> DishModels { get; set; }
         public string IdentityUserId { get; set; }
-        public IdentityUserModel IdentityUserModel { get; set; }
+        public virtual IdentityUserModel IdentityUserModel { get; set; }
     }
 }

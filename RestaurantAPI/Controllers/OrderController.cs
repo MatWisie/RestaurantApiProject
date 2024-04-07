@@ -22,7 +22,36 @@ namespace RestaurantAPI.Controllers
         [HttpGet]
         public async Task<ActionResult<IEnumerable<OrderModel>>> GetOrders()
         {
-            return await _context.Orders.ToListAsync();
+            return await _context.Orders.Select(o => new OrderModel
+            {
+                Id = o.Id,
+                Status = o.Status,
+                Price = o.Price,
+                DishModels = o.DishModels,
+                TableModel = o.TableModel,
+                TableModelId = o.TableModelId,
+                IdentityUserId = o.IdentityUserId
+            })
+            .ToListAsync();
+
+        }
+
+        [Authorize(Roles = UserRoles.Admin + "," + UserRoles.Worker)]
+        [HttpGet("GetActiveOrders")]
+        public async Task<ActionResult<IEnumerable<OrderModel>>> GetActiveOrders()
+        {
+            return await _context.Orders.Select(o => new OrderModel
+            {
+                Id = o.Id,
+                Status = o.Status,
+                Price = o.Price,
+                DishModels = o.DishModels,
+                TableModel = o.TableModel,
+                TableModelId = o.TableModelId,
+                IdentityUserId = o.IdentityUserId
+            }).Where(e => e.Status != Enums.StatusEnum.Paid)
+            .ToListAsync();
+
         }
 
         // GET: api/Order/5
@@ -30,7 +59,16 @@ namespace RestaurantAPI.Controllers
         [HttpGet("{id}")]
         public async Task<ActionResult<OrderModel>> GetOrderModel(int id)
         {
-            var orderModel = await _context.Orders.FindAsync(id);
+            var orderModel = await _context.Orders.Select(o => new OrderModel
+            {
+                Id = o.Id,
+                Status = o.Status,
+                Price = o.Price,
+                DishModels = o.DishModels,
+                TableModel = o.TableModel,
+                TableModelId = o.TableModelId,
+                IdentityUserId = o.IdentityUserId
+            }).FirstAsync(e => e.Id == id);
 
             if (orderModel == null)
             {
@@ -56,7 +94,48 @@ namespace RestaurantAPI.Controllers
             }
 
             var userOrders = await _context.Orders
-                            .Where(o => o.IdentityUserId == id)
+                            .Where(o => o.IdentityUserId == id).Select(o => new OrderModel
+                            {
+                                Id = o.Id,
+                                Status = o.Status,
+                                Price = o.Price,
+                                DishModels = o.DishModels,
+                                TableModel = o.TableModel,
+                                TableModelId = o.TableModelId,
+                                IdentityUserId = o.IdentityUserId
+                            })
+                            .ToListAsync();
+
+            if (userOrders == null)
+            {
+                return NotFound();
+            }
+
+            return userOrders;
+
+        }
+
+        [Authorize]
+        [HttpGet("/GetAllActiveUserOrders/{id}")]
+        public async Task<ActionResult<IEnumerable<OrderModel>>> GetAllActiveUserOrderModel(string id)
+        {
+            string userId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            if (userId != id.ToString() && !User.IsInRole(UserRoles.Admin) && !User.IsInRole(UserRoles.Worker))
+            {
+                return Unauthorized();
+            }
+
+            var userOrders = await _context.Orders
+                            .Where(o => o.IdentityUserId == id && o.Status != Enums.StatusEnum.Paid).Select(o => new OrderModel
+                            {
+                                Id = o.Id,
+                                Status = o.Status,
+                                Price = o.Price,
+                                DishModels = o.DishModels,
+                                TableModel = o.TableModel,
+                                TableModelId = o.TableModelId,
+                                IdentityUserId = o.IdentityUserId
+                            })
                             .ToListAsync();
 
             if (userOrders == null)
@@ -74,13 +153,13 @@ namespace RestaurantAPI.Controllers
         [HttpPut("{id}")]
         public async Task<IActionResult> PutOrderModel(int id, OrderPostModel orderPostModel)
         {
-
             string userId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
             if (userId != orderPostModel.IdentityUserId.ToString() && !User.IsInRole(UserRoles.Admin) && !User.IsInRole(UserRoles.Worker))
             {
                 return Unauthorized();
             }
 
+            var dishModels = await _context.Dishes.Where(d => orderPostModel.DishModelsId.Contains(d.Id)).ToListAsync();
             var existingOrderModel = await _context.Orders.FindAsync(id);
             if (existingOrderModel == null)
             {
@@ -91,16 +170,23 @@ namespace RestaurantAPI.Controllers
                 return BadRequest();
             }
 
-            if (CheckIfAvailableTable(orderPostModel.TableModelId) == false || CheckIfAvailableDish(orderPostModel.DishModelId) == false)
+            var tableModelToAssign = await _context.Tables.FindAsync(orderPostModel.TableModelId);
+
+            if (CheckIfAvailableTable(tableModelToAssign) == false || CheckIfAvailableDish(dishModels) == false)
             {
                 return BadRequest();
             }
-
-            existingOrderModel.Status = orderPostModel.Status;
-            existingOrderModel.Price = orderPostModel.Price;
+            var existingTableModel = await _context.Tables.FindAsync(existingOrderModel.TableModelId);
+            existingTableModel.IsAvailable = true;
             existingOrderModel.TableModelId = orderPostModel.TableModelId;
-            existingOrderModel.DishModelId = orderPostModel.DishModelId;
-            existingOrderModel.IdentityUserId = orderPostModel.IdentityUserId;
+            existingOrderModel.DishModels = dishModels;
+            double price = 0;
+            foreach (var dish in dishModels)
+            {
+                price += dish.Price;
+            }
+            existingOrderModel.Price = price;
+            tableModelToAssign.IsAvailable = false;
 
             _context.Entry(existingOrderModel).State = EntityState.Modified;
 
@@ -120,7 +206,7 @@ namespace RestaurantAPI.Controllers
                 }
             }
 
-            return NoContent();
+            return Ok();
         }
 
         // POST: api/Order
@@ -129,23 +215,31 @@ namespace RestaurantAPI.Controllers
         [HttpPost]
         public async Task<ActionResult<OrderModel>> PostOrderModel(OrderPostModel orderPostModel)
         {
-            if (CheckIfAvailableDish(orderPostModel.DishModelId) == false || CheckIfAvailableTable(orderPostModel.TableModelId) == false)
+            var dishModels = await _context.Dishes.Where(d => orderPostModel.DishModelsId.Contains(d.Id)).ToListAsync();
+            var tableModel = await _context.Tables.FindAsync(orderPostModel.TableModelId);
+            if (CheckIfAvailableDish(dishModels) == false || CheckIfAvailableTable(tableModel) == false)
             {
                 return BadRequest("Order or table is not available");
             }
-
+            orderPostModel.Status = Enums.StatusEnum.Working;
             OrderModel orderModel = new OrderModel()
             {
                 Status = orderPostModel.Status,
-                Price = orderPostModel.Price,
                 TableModelId = orderPostModel.TableModelId,
-                DishModelId = orderPostModel.DishModelId,
-                IdentityUserId = orderPostModel.IdentityUserId,
+                DishModels = dishModels,
+                IdentityUserId = orderPostModel.IdentityUserId
             };
+            double price = 0;
+            foreach (var dish in dishModels)
+            {
+                price += dish.Price;
+            }
+            orderModel.Price = price;
             _context.Orders.Add(orderModel);
+            tableModel.IsAvailable = false;
             await _context.SaveChangesAsync();
 
-            return CreatedAtAction("GetOrderModel", new { id = orderModel.Id }, orderModel);
+            return Ok("Order created");
         }
 
         // DELETE: api/Order/5
@@ -170,7 +264,140 @@ namespace RestaurantAPI.Controllers
             _context.Orders.Remove(orderModel);
             await _context.SaveChangesAsync();
 
-            return NoContent();
+            return Ok();
+        }
+        [Authorize]
+        [HttpPut("/ChangeStatus_ReadyToPay/{id}")]
+        public async Task<IActionResult> ReadytoPayOrderModel(int id)
+        {
+
+            string userId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+
+            var existingOrderModel = await _context.Orders.FindAsync(id);
+            if (existingOrderModel == null)
+            {
+                return NotFound();
+            }
+            if (userId != existingOrderModel.IdentityUserId.ToString() && !User.IsInRole(UserRoles.Admin) && !User.IsInRole(UserRoles.Worker))
+            {
+                return Unauthorized();
+            }
+            if (id != existingOrderModel.Id)
+            {
+                return BadRequest();
+            }
+            existingOrderModel.Status = Enums.StatusEnum.ReadyToPay;
+
+            _context.Entry(existingOrderModel).State = EntityState.Modified;
+
+            try
+            {
+                await _context.SaveChangesAsync();
+            }
+            catch (DbUpdateConcurrencyException)
+            {
+                if (!OrderModelExists(id))
+                {
+                    return NotFound();
+                }
+                else
+                {
+                    throw;
+                }
+            }
+
+            return Ok();
+        }
+
+        [Authorize(Roles = UserRoles.Admin + "," + UserRoles.Worker)]
+        [HttpPut("/ChangeStatus_Ready/{id}")]
+        public async Task<IActionResult> ReadyOrderModel(int id)
+        {
+
+            string userId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+
+            var existingOrderModel = await _context.Orders.FindAsync(id);
+            if (existingOrderModel == null)
+            {
+                return NotFound();
+            }
+            if (userId != existingOrderModel.IdentityUserId.ToString() && !User.IsInRole(UserRoles.Admin) && !User.IsInRole(UserRoles.Worker))
+            {
+                return Unauthorized();
+            }
+            if (id != existingOrderModel.Id)
+            {
+                return BadRequest();
+            }
+            existingOrderModel.Status = Enums.StatusEnum.Ready;
+
+            _context.Entry(existingOrderModel).State = EntityState.Modified;
+
+            try
+            {
+                await _context.SaveChangesAsync();
+            }
+            catch (DbUpdateConcurrencyException)
+            {
+                if (!OrderModelExists(id))
+                {
+                    return NotFound();
+                }
+                else
+                {
+                    throw;
+                }
+            }
+
+            return Ok();
+        }
+
+        [Authorize(Roles = UserRoles.Admin + "," + UserRoles.Worker)]
+        [HttpPut("/ChangeStatus_Paid/{id}")]
+        public async Task<IActionResult> PaidOrderModel(int id)
+        {
+
+            string userId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+
+            var existingOrderModel = await _context.Orders.FindAsync(id);
+            if (existingOrderModel == null)
+            {
+                return NotFound();
+            }
+            if (userId != existingOrderModel.IdentityUserId.ToString() && !User.IsInRole(UserRoles.Admin) && !User.IsInRole(UserRoles.Worker))
+            {
+                return Unauthorized();
+            }
+            if (id != existingOrderModel.Id)
+            {
+                return BadRequest();
+            }
+            if (existingOrderModel.Status != Enums.StatusEnum.ReadyToPay)
+            {
+                return BadRequest();
+            }
+            existingOrderModel.Status = Enums.StatusEnum.Paid;
+            existingOrderModel.TableModel.IsAvailable = true;
+
+            _context.Entry(existingOrderModel).State = EntityState.Modified;
+
+            try
+            {
+                await _context.SaveChangesAsync();
+            }
+            catch (DbUpdateConcurrencyException)
+            {
+                if (!OrderModelExists(id))
+                {
+                    return NotFound();
+                }
+                else
+                {
+                    throw;
+                }
+            }
+
+            return Ok();
         }
 
         private bool OrderModelExists(int id)
@@ -178,11 +405,9 @@ namespace RestaurantAPI.Controllers
             return _context.Orders.Any(e => e.Id == id);
         }
 
-        private bool CheckIfAvailableTable(int tableModelId)
+        private bool CheckIfAvailableTable(TableModel table)
         {
-            var existingTable = _context.Tables.Find(tableModelId);
-
-            if ((existingTable == null || existingTable.IsAvailable == false))
+            if ((table == null || table?.IsAvailable == false))
             {
                 return false;
             }
@@ -190,16 +415,18 @@ namespace RestaurantAPI.Controllers
 
         }
 
-        private bool CheckIfAvailableDish(int dishModelId)
+        private bool CheckIfAvailableDish(List<DishModel> dishModels)
         {
-            var existingDish = _context.Dishes.Find(dishModelId);
-
-            if ((existingDish == null || existingDish.Availability == false))
+            foreach (var dish in dishModels)
             {
-                return false;
+                var existingDish = _context.Dishes.Find(dish.Id);
+
+                if ((existingDish == null || existingDish.Availability == false))
+                {
+                    return false;
+                }
             }
             return true;
-
         }
     }
 }

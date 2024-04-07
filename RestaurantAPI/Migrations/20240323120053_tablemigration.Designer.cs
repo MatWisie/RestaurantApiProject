@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using RestaurantAPI;
 
@@ -11,9 +12,11 @@ using RestaurantAPI;
 namespace RestaurantAPI.Migrations
 {
     [DbContext(typeof(RestaurantDbContext))]
-    partial class RestaurantDbContextModelSnapshot : ModelSnapshot
+    [Migration("20240323120053_tablemigration")]
+    partial class tablemigration
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -21,21 +24,6 @@ namespace RestaurantAPI.Migrations
                 .HasAnnotation("Relational:MaxIdentifierLength", 128);
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
-
-            modelBuilder.Entity("DishModelOrderModel", b =>
-                {
-                    b.Property<int>("DishModelsId")
-                        .HasColumnType("int");
-
-                    b.Property<int>("OrdersId")
-                        .HasColumnType("int");
-
-                    b.HasKey("DishModelsId", "OrdersId");
-
-                    b.HasIndex("OrdersId");
-
-                    b.ToTable("DishModelOrderModel");
-                });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRole", b =>
                 {
@@ -275,6 +263,9 @@ namespace RestaurantAPI.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
+                    b.Property<int>("DishModelId")
+                        .HasColumnType("int");
+
                     b.Property<string>("IdentityUserId")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
@@ -282,8 +273,8 @@ namespace RestaurantAPI.Migrations
                     b.Property<string>("IdentityUserModelId")
                         .HasColumnType("nvarchar(450)");
 
-                    b.Property<double>("Price")
-                        .HasColumnType("float");
+                    b.Property<int>("Price")
+                        .HasColumnType("int");
 
                     b.Property<int>("Status")
                         .HasColumnType("int");
@@ -292,6 +283,8 @@ namespace RestaurantAPI.Migrations
                         .HasColumnType("int");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("DishModelId");
 
                     b.HasIndex("IdentityUserModelId");
 
@@ -357,21 +350,6 @@ namespace RestaurantAPI.Migrations
                     b.ToTable("Tables");
                 });
 
-            modelBuilder.Entity("DishModelOrderModel", b =>
-                {
-                    b.HasOne("RestaurantAPI.Models.DishModel", null)
-                        .WithMany()
-                        .HasForeignKey("DishModelsId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("RestaurantAPI.Models.OrderModel", null)
-                        .WithMany()
-                        .HasForeignKey("OrdersId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-                });
-
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<string>", b =>
                 {
                     b.HasOne("Microsoft.AspNetCore.Identity.IdentityRole", null)
@@ -425,6 +403,12 @@ namespace RestaurantAPI.Migrations
 
             modelBuilder.Entity("RestaurantAPI.Models.OrderModel", b =>
                 {
+                    b.HasOne("RestaurantAPI.Models.DishModel", "DishModel")
+                        .WithMany("Orders")
+                        .HasForeignKey("DishModelId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
                     b.HasOne("RestaurantAPI.Models.IdentityUserModel", "IdentityUserModel")
                         .WithMany("OrderModels")
                         .HasForeignKey("IdentityUserModelId");
@@ -434,6 +418,8 @@ namespace RestaurantAPI.Migrations
                         .HasForeignKey("TableModelId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+
+                    b.Navigation("DishModel");
 
                     b.Navigation("IdentityUserModel");
 
@@ -455,6 +441,11 @@ namespace RestaurantAPI.Migrations
                     b.Navigation("IdentityUserModel");
 
                     b.Navigation("TableModel");
+                });
+
+            modelBuilder.Entity("RestaurantAPI.Models.DishModel", b =>
+                {
+                    b.Navigation("Orders");
                 });
 
             modelBuilder.Entity("RestaurantAPI.Models.IdentityUserModel", b =>
