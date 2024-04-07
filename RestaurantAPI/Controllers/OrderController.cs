@@ -29,6 +29,7 @@ namespace RestaurantAPI.Controllers
                 Price = o.Price,
                 DishModels = o.DishModels,
                 TableModel = o.TableModel,
+                TableModelId = o.TableModelId,
                 IdentityUserId = o.IdentityUserId
             })
             .ToListAsync();
@@ -46,6 +47,7 @@ namespace RestaurantAPI.Controllers
                 Price = o.Price,
                 DishModels = o.DishModels,
                 TableModel = o.TableModel,
+                TableModelId = o.TableModelId,
                 IdentityUserId = o.IdentityUserId
             }).Where(e => e.Status != Enums.StatusEnum.Paid)
             .ToListAsync();
@@ -64,6 +66,7 @@ namespace RestaurantAPI.Controllers
                 Price = o.Price,
                 DishModels = o.DishModels,
                 TableModel = o.TableModel,
+                TableModelId = o.TableModelId,
                 IdentityUserId = o.IdentityUserId
             }).FirstAsync(e => e.Id == id);
 
@@ -98,6 +101,7 @@ namespace RestaurantAPI.Controllers
                                 Price = o.Price,
                                 DishModels = o.DishModels,
                                 TableModel = o.TableModel,
+                                TableModelId = o.TableModelId,
                                 IdentityUserId = o.IdentityUserId
                             })
                             .ToListAsync();
@@ -129,6 +133,7 @@ namespace RestaurantAPI.Controllers
                                 Price = o.Price,
                                 DishModels = o.DishModels,
                                 TableModel = o.TableModel,
+                                TableModelId = o.TableModelId,
                                 IdentityUserId = o.IdentityUserId
                             })
                             .ToListAsync();
@@ -165,13 +170,23 @@ namespace RestaurantAPI.Controllers
                 return BadRequest();
             }
 
-            if (CheckIfAvailableTable(orderPostModel.TableModelId) == false || CheckIfAvailableDish(dishModels) == false)
+            var tableModelToAssign = await _context.Tables.FindAsync(orderPostModel.TableModelId);
+
+            if (CheckIfAvailableTable(tableModelToAssign) == false || CheckIfAvailableDish(dishModels) == false)
             {
                 return BadRequest();
             }
-
+            var existingTableModel = await _context.Tables.FindAsync(existingOrderModel.TableModelId);
+            existingTableModel.IsAvailable = true;
             existingOrderModel.TableModelId = orderPostModel.TableModelId;
             existingOrderModel.DishModels = dishModels;
+            double price = 0;
+            foreach (var dish in dishModels)
+            {
+                price += dish.Price;
+            }
+            existingOrderModel.Price = price;
+            tableModelToAssign.IsAvailable = false;
 
             _context.Entry(existingOrderModel).State = EntityState.Modified;
 
@@ -191,7 +206,7 @@ namespace RestaurantAPI.Controllers
                 }
             }
 
-            return NoContent();
+            return Ok();
         }
 
         // POST: api/Order
@@ -201,7 +216,8 @@ namespace RestaurantAPI.Controllers
         public async Task<ActionResult<OrderModel>> PostOrderModel(OrderPostModel orderPostModel)
         {
             var dishModels = await _context.Dishes.Where(d => orderPostModel.DishModelsId.Contains(d.Id)).ToListAsync();
-            if (CheckIfAvailableDish(dishModels) == false || CheckIfAvailableTable(orderPostModel.TableModelId) == false)
+            var tableModel = await _context.Tables.FindAsync(orderPostModel.TableModelId);
+            if (CheckIfAvailableDish(dishModels) == false || CheckIfAvailableTable(tableModel) == false)
             {
                 return BadRequest("Order or table is not available");
             }
@@ -209,12 +225,18 @@ namespace RestaurantAPI.Controllers
             OrderModel orderModel = new OrderModel()
             {
                 Status = orderPostModel.Status,
-                Price = orderPostModel.Price,
                 TableModelId = orderPostModel.TableModelId,
                 DishModels = dishModels,
                 IdentityUserId = orderPostModel.IdentityUserId
             };
+            double price = 0;
+            foreach (var dish in dishModels)
+            {
+                price += dish.Price;
+            }
+            orderModel.Price = price;
             _context.Orders.Add(orderModel);
+            tableModel.IsAvailable = false;
             await _context.SaveChangesAsync();
 
             return Ok("Order created");
@@ -242,7 +264,7 @@ namespace RestaurantAPI.Controllers
             _context.Orders.Remove(orderModel);
             await _context.SaveChangesAsync();
 
-            return NoContent();
+            return Ok();
         }
         [Authorize]
         [HttpPut("/ChangeStatus_ReadyToPay/{id}")]
@@ -284,7 +306,7 @@ namespace RestaurantAPI.Controllers
                 }
             }
 
-            return NoContent();
+            return Ok();
         }
 
         [Authorize(Roles = UserRoles.Admin + "," + UserRoles.Worker)]
@@ -327,7 +349,7 @@ namespace RestaurantAPI.Controllers
                 }
             }
 
-            return NoContent();
+            return Ok();
         }
 
         [Authorize(Roles = UserRoles.Admin + "," + UserRoles.Worker)]
@@ -355,6 +377,7 @@ namespace RestaurantAPI.Controllers
                 return BadRequest();
             }
             existingOrderModel.Status = Enums.StatusEnum.Paid;
+            existingOrderModel.TableModel.IsAvailable = true;
 
             _context.Entry(existingOrderModel).State = EntityState.Modified;
 
@@ -374,7 +397,7 @@ namespace RestaurantAPI.Controllers
                 }
             }
 
-            return NoContent();
+            return Ok();
         }
 
         private bool OrderModelExists(int id)
@@ -382,11 +405,9 @@ namespace RestaurantAPI.Controllers
             return _context.Orders.Any(e => e.Id == id);
         }
 
-        private bool CheckIfAvailableTable(int tableModelId)
+        private bool CheckIfAvailableTable(TableModel table)
         {
-            var existingTable = _context.Tables.Find(tableModelId);
-
-            if ((existingTable == null || existingTable.IsAvailable == false))
+            if ((table == null || table?.IsAvailable == false))
             {
                 return false;
             }
