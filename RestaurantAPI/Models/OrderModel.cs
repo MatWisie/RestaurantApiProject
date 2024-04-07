@@ -6,7 +6,7 @@ namespace RestaurantAPI.Models
     {
         public int Id { get; set; }
         public StatusEnum Status { get; set; } = StatusEnum.Working;
-        public int Price { get; set; }
+        public double Price { get; set; }
         public int TableModelId { get; set; }
         public virtual TableModel TableModel { get; set; }
         public List<DishModel> DishModels { get; set; }
