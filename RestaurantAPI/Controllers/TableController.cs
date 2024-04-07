@@ -42,7 +42,10 @@ namespace RestaurantAPI.Controllers
             bool result = _infraService.EditInfrastructure(infrastructureModel);
             if (result)
             {
-                return Ok();
+                var allTables = _context.Tables.ToList();
+                _context.Tables.RemoveRange(allTables);
+                _context.SaveChanges();
+                return Ok("Infrastructure edited, tables deleted");
             }
             else
             {
@@ -115,7 +118,7 @@ namespace RestaurantAPI.Controllers
                 }
             }
 
-            return NoContent();
+            return Ok();
         }
 
         [Authorize(Roles = UserRoles.Worker + "," + UserRoles.Admin)]
@@ -148,7 +151,7 @@ namespace RestaurantAPI.Controllers
                 }
             }
 
-            return NoContent();
+            return Ok();
         }
 
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
@@ -200,7 +203,7 @@ namespace RestaurantAPI.Controllers
             _context.Tables.Remove(tableModel);
             await _context.SaveChangesAsync();
 
-            return NoContent();
+            return Ok();
         }
 
         private bool TableModelExists(int id)
