@@ -247,8 +247,6 @@ namespace RestaurantAPI.Controllers
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteOrderModel(int id)
         {
-
-
             var orderModel = await _context.Orders.FindAsync(id);
             if (orderModel == null)
             {
@@ -259,6 +257,12 @@ namespace RestaurantAPI.Controllers
             if (userId != orderModel.IdentityUserId.ToString() && !User.IsInRole(UserRoles.Admin) && !User.IsInRole(UserRoles.Worker))
             {
                 return Unauthorized();
+            }
+            var table = await _context.Tables.FindAsync(orderModel.TableModelId);
+            if (table != null)
+            {
+                table.IsAvailable = true;
+                _context.Entry(table).State = EntityState.Modified;
             }
 
             _context.Orders.Remove(orderModel);
