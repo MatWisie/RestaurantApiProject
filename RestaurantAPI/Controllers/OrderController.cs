@@ -170,6 +170,17 @@ namespace RestaurantAPI.Controllers
                 return BadRequest();
             }
 
+            var existingReservation = await _context.Reservations
+            .FirstOrDefaultAsync(r =>
+                r.TableModelId == orderPostModel.TableModelId &&
+                ((r.From >= DateTime.Now && r.From < DateTime.Now.AddHours(1)) ||
+                (r.To > DateTime.Now && r.To <= DateTime.Now.AddHours(1))));
+
+            if (existingReservation != null && existingOrderModel.IdentityUserId != existingReservation.IdentityUserId)
+            {
+                return BadRequest("Reservation exists for this table in the specified time frame.");
+            }
+
             var tableModelToAssign = await _context.Tables.FindAsync(orderPostModel.TableModelId);
 
             if (CheckIfAvailableTable(tableModelToAssign) == false || CheckIfAvailableDish(dishModels) == false)
@@ -217,6 +228,18 @@ namespace RestaurantAPI.Controllers
         {
             var dishModels = await _context.Dishes.Where(d => orderPostModel.DishModelsId.Contains(d.Id)).ToListAsync();
             var tableModel = await _context.Tables.FindAsync(orderPostModel.TableModelId);
+
+            var existingReservation = await _context.Reservations
+                                    .FirstOrDefaultAsync(r =>
+                                        r.TableModelId == orderPostModel.TableModelId &&
+                                        ((r.From >= DateTime.Now && r.From < DateTime.Now) ||
+                                        (r.To > DateTime.Now && r.To <= DateTime.Now)));
+
+            if (existingReservation != null && orderPostModel.IdentityUserId != existingReservation.IdentityUserId)
+            {
+                return BadRequest("Reservation exists for this table in the specified time frame.");
+            }
+
             if (CheckIfAvailableDish(dishModels) == false || CheckIfAvailableTable(tableModel) == false)
             {
                 return BadRequest("Order or table is not available");
