@@ -14,5 +14,6 @@ namespace RestaurantAPI
         public DbSet<OrderModel> Orders { get; set; }
         public DbSet<ReservationModel> Reservations { get; set; }
         public DbSet<TableModel> Tables { get; set; }
+        public DbSet<LoginLogModel> LoginLogs { get; set; }
     }
 }
