@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.IdentityModel.Tokens;
 using RestaurantAPI.Models;
 using System.IdentityModel.Tokens.Jwt;
+using System.Net;
 using System.Security.Claims;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -15,12 +16,15 @@ namespace RestaurantAPI.Controllers
         private readonly UserManager<IdentityUserModel> _userManager;
         private readonly RoleManager<IdentityRole> _roleManager;
         private readonly IConfiguration _configuration;
+        private readonly RestaurantDbContext _context;
 
-        public AuthController(UserManager<IdentityUserModel> userManager, RoleManager<IdentityRole> roleManager, IConfiguration configuration)
+        public AuthController(UserManager<IdentityUserModel> userManager, RoleManager<IdentityRole> roleManager, IConfiguration configuration, RestaurantDbContext context)
         {
             _userManager = userManager;
             _roleManager = roleManager;
             _configuration = configuration;
+            _context = context;
+
             CreateDefaultAdmin().Wait();
         }
         public IActionResult Index()
@@ -33,45 +37,65 @@ namespace RestaurantAPI.Controllers
         public async Task<IActionResult> LoginWorker([FromBody] LoginModel model)
         {
             var user = await _userManager.FindByNameAsync(model.Username);
-            if (user != null && await _userManager.CheckPasswordAsync(user, model.Password))
+            if (user != null)
             {
-                var userRoles = await _userManager.GetRolesAsync(user);
-                if (!userRoles.Any(e => e.Contains(UserRoles.Admin) || e.Contains(UserRoles.Worker)))
+
+                if (await CheckForLockout(user))
                 {
-                    return StatusCode(StatusCodes.Status500InternalServerError, new Response { Status = "Error", Message = "Selected user is not worker or admin" });
+                    await AddLoginLog(false, HttpStatusCode.Forbidden, user.Id);
+                    return Unauthorized("Your account is locked. Please try again later");
+                    //return StatusCode(StatusCodes.Status403Forbidden, new Response { Status = "Error", Message = "Your account is locked. Please try again later" });
                 }
 
-                var authClaims = new List<Claim>
+                if (await _userManager.CheckPasswordAsync(user, model.Password))
                 {
-                    new Claim(ClaimTypes.Name, user.UserName),
-                    new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
-                    new Claim(ClaimTypes.NameIdentifier, user.Id),
-                };
+                    var userRoles = await _userManager.GetRolesAsync(user);
+                    if (!userRoles.Any(e => e.Contains(UserRoles.Admin) || e.Contains(UserRoles.Worker)))
+                    {
+                        return StatusCode(StatusCodes.Status500InternalServerError, new Response { Status = "Error", Message = "Selected user is not worker or admin" });
+                    }
 
-                foreach (var userRole in userRoles)
-                {
-                    authClaims.Add(new Claim(ClaimTypes.Role, userRole));
+                    var authClaims = new List<Claim>
+                    {
+                        new Claim(ClaimTypes.Name, user.UserName),
+                        new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
+                        new Claim(ClaimTypes.NameIdentifier, user.Id),
+                    };
+
+                    foreach (var userRole in userRoles)
+                    {
+                        authClaims.Add(new Claim(ClaimTypes.Role, userRole));
+                    }
+
+                    var token = GetToken(authClaims);
+                    bool originalFirstTimeLoggedIn = user.FirstTimeLoggedIn;
+
+                    if (user.FirstTimeLoggedIn)
+                    {
+                        user.FirstTimeLoggedIn = false;
+                        await _userManager.UpdateAsync(user);
+                    }
+
+                    await AddLoginLog(true, HttpStatusCode.OK, user.Id);
+
+                    return Ok(new
+                    {
+                        token = new JwtSecurityTokenHandler().WriteToken(token),
+                        expiration = token.ValidTo,
+                        userId = user.Id,
+                        userRoles = userRoles,
+                        firstLogin = originalFirstTimeLoggedIn
+                    });
                 }
-
-                var token = GetToken(authClaims);
-                bool originalFirstTimeLoggedIn = user.FirstTimeLoggedIn;
-
-                if (user.FirstTimeLoggedIn)
+                else
                 {
-                    user.FirstTimeLoggedIn = false;
-                    await _userManager.UpdateAsync(user);
+                    await _userManager.AccessFailedAsync(user);
+                    await AddLoginLog(false, HttpStatusCode.Unauthorized, user.Id);
+                    return Unauthorized("Wrong name or password");
                 }
-
-                return Ok(new
-                {
-                    token = new JwtSecurityTokenHandler().WriteToken(token),
-                    expiration = token.ValidTo,
-                    userId = user.Id,
-                    userRoles = userRoles,
-                    firstLogin = originalFirstTimeLoggedIn
-                });
             }
-            return Unauthorized();
+            await AddLoginLog(false, HttpStatusCode.Unauthorized, null);
+            return Unauthorized("Wrong name or password");
         }
 
         [HttpPost]
@@ -79,37 +103,55 @@ namespace RestaurantAPI.Controllers
         public async Task<IActionResult> LoginUser([FromBody] LoginModel model)
         {
             var user = await _userManager.FindByNameAsync(model.Username);
-            if (user != null && await _userManager.CheckPasswordAsync(user, model.Password))
+            if (user != null)
             {
-                var userRoles = await _userManager.GetRolesAsync(user);
-                if (userRoles.Any(e => e == UserRoles.Admin || e == UserRoles.Worker))
+                if (await CheckForLockout(user))
                 {
-                    return StatusCode(StatusCodes.Status500InternalServerError, new Response { Status = "Error", Message = "Selected user is not worker or admin" });
+                    await AddLoginLog(false, HttpStatusCode.Forbidden, user.Id);
+                    return Unauthorized("Your account is locked. Please try again later");
                 }
 
-                var authClaims = new List<Claim>
+                if (await _userManager.CheckPasswordAsync(user, model.Password))
                 {
-                    new Claim(ClaimTypes.Name, user.UserName),
-                    new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
-                    new Claim(ClaimTypes.NameIdentifier, user.Id),
-                };
+                    var userRoles = await _userManager.GetRolesAsync(user);
+                    if (userRoles.Any(e => e == UserRoles.Admin || e == UserRoles.Worker))
+                    {
+                        return StatusCode(StatusCodes.Status500InternalServerError, new Response { Status = "Error", Message = "Selected user is not worker or admin" });
+                    }
 
-                foreach (var userRole in userRoles)
-                {
-                    authClaims.Add(new Claim(ClaimTypes.Role, userRole));
+                    var authClaims = new List<Claim>
+                    {
+                        new Claim(ClaimTypes.Name, user.UserName),
+                        new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
+                        new Claim(ClaimTypes.NameIdentifier, user.Id),
+                    };
+
+                    foreach (var userRole in userRoles)
+                    {
+                        authClaims.Add(new Claim(ClaimTypes.Role, userRole));
+                    }
+
+                    var token = GetToken(authClaims);
+
+                    await AddLoginLog(true, HttpStatusCode.OK, user.Id);
+
+                    return Ok(new
+                    {
+                        token = new JwtSecurityTokenHandler().WriteToken(token),
+                        expiration = token.ValidTo,
+                        userId = user.Id,
+                        userRoles = userRoles
+                    });
                 }
-
-                var token = GetToken(authClaims);
-
-                return Ok(new
+                else
                 {
-                    token = new JwtSecurityTokenHandler().WriteToken(token),
-                    expiration = token.ValidTo,
-                    userId = user.Id,
-                    userRoles = userRoles
-                });
+                    await _userManager.AccessFailedAsync(user);
+                    await AddLoginLog(false, HttpStatusCode.Unauthorized, user.Id);
+                    return Unauthorized("Wrong name or password");
+                }
             }
-            return Unauthorized();
+            await AddLoginLog(false, HttpStatusCode.Unauthorized, null);
+            return Unauthorized("Wrong name or password");
         }
 
         [HttpPost]
@@ -233,6 +275,37 @@ namespace RestaurantAPI.Controllers
             {
                 await _userManager.AddToRoleAsync(user, UserRoles.Admin);
             }
+        }
+
+        private async Task<bool> CheckForLockout(IdentityUserModel user)
+        {
+            var isLockedOut = await _userManager.IsLockedOutAsync(user);
+            return isLockedOut;
+        }
+
+        private async Task AddLoginLog(bool success, HttpStatusCode statusCode, string? userId)
+        {
+            string clientIP = GetClientIpAddress(Request);
+            LoginLogModel log = new LoginLogModel()
+            {
+                IpAddress = clientIP,
+                Success = success,
+                CreatedAt = DateTime.Now,
+                StatusCode = statusCode,
+                IdentityUserId = userId
+            };
+            _context.LoginLogs.Add(log);
+            await _context.SaveChangesAsync();
+        }
+
+        private string GetClientIpAddress(HttpRequest request)
+        {
+            var remoteIp = HttpContext.Connection.RemoteIpAddress;
+            if (remoteIp != null && remoteIp.IsIPv4MappedToIPv6)
+            {
+                return remoteIp.MapToIPv4().ToString();
+            }
+            else return remoteIp.ToString();
         }
     }
 }
