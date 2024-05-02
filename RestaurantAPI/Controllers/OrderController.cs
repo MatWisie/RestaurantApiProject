@@ -242,7 +242,7 @@ namespace RestaurantAPI.Controllers
 
             if (CheckIfAvailableDish(dishModels) == false || CheckIfAvailableTable(tableModel) == false)
             {
-                return BadRequest("Order or table is not available");
+                return BadRequest("Dish or table is not available");
             }
             orderPostModel.Status = Enums.StatusEnum.Working;
             OrderModel orderModel = new OrderModel()

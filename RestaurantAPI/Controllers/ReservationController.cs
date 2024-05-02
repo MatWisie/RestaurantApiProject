@@ -178,5 +178,25 @@ namespace RestaurantAPI.Controllers
 
             return Ok();
         }
+
+        [Authorize]
+        [HttpGet("/GetReservations-MobileWeb")]
+        public async Task<ActionResult<IEnumerable<ReservationPrivateGetModel>>> GetReservationsMobileWeb()
+        {
+            var reservations = await _context.Reservations.Where(e => e.From > DateTime.Today && e.To > DateTime.Today).ToListAsync();
+            List<ReservationPrivateGetModel> reservationsDto = new List<ReservationPrivateGetModel>();
+            foreach (var res in reservations)
+            {
+                var tmpRes = new ReservationPrivateGetModel()
+                {
+                    Id = res.Id,
+                    From = res.From,
+                    To = res.To,
+                    TableModelId = res.TableModelId,
+                };
+                reservationsDto.Add(tmpRes);
+            }
+            return Ok(reservationsDto);
+        }
     }
 }

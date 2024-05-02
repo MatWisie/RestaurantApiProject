@@ -12,7 +12,12 @@ ConfigurationManager configuration = builder.Configuration;
 builder.Services.AddDbContext<RestaurantDbContext>(options => options.UseSqlServer(configuration.GetConnectionString("ConnStr")));
 
 // For Identity
-builder.Services.AddIdentity<IdentityUserModel, IdentityRole>()
+builder.Services.AddIdentity<IdentityUserModel, IdentityRole>(options =>
+    {
+        options.Lockout.AllowedForNewUsers = true;
+        options.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(5);
+        options.Lockout.MaxFailedAccessAttempts = 5;
+    })
     .AddEntityFrameworkStores<RestaurantDbContext>()
     .AddDefaultTokenProviders();
 
