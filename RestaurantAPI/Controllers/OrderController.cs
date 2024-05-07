@@ -404,7 +404,13 @@ namespace RestaurantAPI.Controllers
                 return BadRequest();
             }
             existingOrderModel.Status = Enums.StatusEnum.Paid;
-            existingOrderModel.TableModel.IsAvailable = true;
+
+            var existingTableModel = await _context.Tables.FindAsync(existingOrderModel.TableModelId);
+            if (existingTableModel != null)
+            {
+                existingTableModel.IsAvailable = true;
+                _context.Entry(existingTableModel).State = EntityState.Modified;
+            }
 
             _context.Entry(existingOrderModel).State = EntityState.Modified;
 
