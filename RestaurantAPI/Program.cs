@@ -10,7 +10,13 @@ var builder = WebApplication.CreateBuilder(args);
 ConfigurationManager configuration = builder.Configuration;
 
 builder.Services.AddDbContext<RestaurantDbContext>(options => options.UseSqlServer(configuration.GetConnectionString("ConnStr")));
+builder.Services.AddCors(o => o.AddPolicy("MyPolicy", builder =>
+{
+    builder.WithOrigins("*")
+           .AllowAnyMethod()
+           .AllowAnyHeader();
 
+}));
 // For Identity
 builder.Services.AddIdentity<IdentityUserModel, IdentityRole>(options =>
     {
@@ -58,6 +64,8 @@ app.UseSwaggerUI();
 
 
 app.UseHttpsRedirection();
+
+app.UseCors("MyPolicy");
 
 app.UseAuthorization();
 
